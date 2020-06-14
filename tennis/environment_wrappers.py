@@ -130,7 +130,6 @@ def _setup_unity_environment(
 
 def _environment_specs(brain: BrainParameters) -> Tuple[Box, Box, Tuple[float, float]]:
     """Extract the action space, observation space and reward range info from an environment brain."""
-    # TODO: Update this to fit the environment specs of tennis.
     action_space_size = brain.vector_action_space_size
     observation_space_size = brain.vector_observation_space_size
     action_space = Box(
@@ -139,6 +138,6 @@ def _environment_specs(brain: BrainParameters) -> Tuple[Box, Box, Tuple[float, f
     observation_space = Box(
         low=np.array(observation_space_size * [-float('inf')]),
         high=np.array(observation_space_size * [float('inf')]))
-    reward_range = (0.0, float('inf'))
+    reward_range = (-float('inf'), float('inf'))
 
     return action_space, observation_space, reward_range
