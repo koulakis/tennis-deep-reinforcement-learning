@@ -4,11 +4,21 @@ import time
 import numpy as np
 import typer
 import torch
+from stable_baselines3.common.base_class import BaseRLModel
+
 
 from tennis.environment_wrappers import UnityMultiAgentEnvironmentWrapper
 
 
 DEVICE = torch.device('cpu')
+
+
+class TrainedAgent:
+    def __init__(self, parameters_path: str):
+        self.model = BaseRLModel.load(parameters_path)
+
+    def act(self, state: np.ndarray) -> np.ndarray:
+        return self.model.predict(state)[0]
 
 
 class RandomAgent:
@@ -51,7 +61,7 @@ def run_environment(
     if random_agent:
         agent = RandomAgent(number_of_agents=number_of_agents, action_size=action_size)
     else:
-        raise NotImplementedError
+        agent = TrainedAgent(agent_parameters_path)
 
     for episode in range(6):
         score = 0
