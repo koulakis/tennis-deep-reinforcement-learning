@@ -3,3 +3,4 @@ tennis.egg-info
 unity_tennis_environment
 unity-environment.log
 __pycache__
+.ipynb_checkpoints

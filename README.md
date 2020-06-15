@@ -1,7 +1,7 @@
 # Tennis
 ## Introduction
 This is a solution for the third project of the [Udacity deep reinforcement learning course](https://www.udacity.com/course/deep-reinforcement-learning-nanodegree--nd893). 
-It includes scripts for training on both agents with a single SAC (Soft Actor Critique) algorithm and running it in a simulation environment.
+It includes scripts for training on both agents with a single SAC (Soft Actor Critic) algorithm and running it in a simulation environment.
 The models were trained using the [Stable Baselines3 project](https://stable-baselines3.readthedocs.io/en/master/#).
 
 ## Example agents
