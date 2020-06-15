@@ -4,10 +4,10 @@ import time
 import numpy as np
 import typer
 import torch
-from stable_baselines3.common.base_class import BaseRLModel
+from stable_baselines3.sac import SAC
 
 
-from tennis.environment_wrappers import UnityMultiAgentEnvironmentWrapper
+from tennis.environment_wrappers import UnityEnvironmentWrapperToGym
 
 
 DEVICE = torch.device('cpu')
@@ -15,7 +15,7 @@ DEVICE = torch.device('cpu')
 
 class TrainedAgent:
     def __init__(self, parameters_path: str):
-        self.model = BaseRLModel.load(parameters_path)
+        self.model = SAC.load(parameters_path)
 
     def act(self, state: np.ndarray) -> np.ndarray:
         return self.model.predict(state)[0]
@@ -53,7 +53,7 @@ def run_environment(
         port=port
     )
 
-    env = UnityMultiAgentEnvironmentWrapper(**environment_parameters)
+    env = UnityEnvironmentWrapperToGym(**environment_parameters)
 
     number_of_agents = env.num_envs
     action_size = env.action_space.shape[0]

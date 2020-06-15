@@ -9,7 +9,7 @@ from stable_baselines3.common.noise import NormalActionNoise
 from torch import nn
 import numpy as np
 
-from tennis.environment_wrappers import UnityMultiAgentEnvironmentWrapper
+from tennis.environment_wrappers import UnityEnvironmentWrapperToGym
 from tennis.definitions import ROOT_DIR
 
 EXPERIMENTS_DIR = ROOT_DIR / 'experiments'
@@ -30,7 +30,7 @@ def train(
         experiment_name: str = typer.Option(...),
         total_timesteps: int = int(5e5),
         env_seed: int = random.randint(0, int(1e6)),
-        environment_port: int = 6005,
+        port: int = 6005,
         device: str = 'cuda',
         gamma: float = 0.98,
         learning_rate: float = 7.3e-4,
@@ -55,7 +55,7 @@ def train(
             store there all training artifacts along with the final and best models
         total_timesteps: the number of timestamps to run till stopping training
         env_seed: a seed for the environment random initialization - if not set, defaults to random
-        environment_port: this is the port used by the unity environment to communicate with the C# backend. One needs
+        port: this is the port used by the unity environment to communicate with the C# backend. One needs
             to set different ports to different environments which run in parallel.
         device: the device used to train the model, can be 'cpu' or 'cuda:x'
         gamma: the discount rate applied to future actions
@@ -79,9 +79,9 @@ def train(
         seed=env_seed,
         no_graphics=True,
         train_mode=True,
-        environment_port=environment_port)
+        port=port)
 
-    env = UnityMultiAgentEnvironmentWrapper(**environment_parameters)
+    env = UnityEnvironmentWrapperToGym(**environment_parameters)
 
     algorithm_class, policy = algorithm_and_policy[rl_algorithm]
 

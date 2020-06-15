@@ -6,7 +6,7 @@ from setuptools import setup, Command, find_packages
 with open('requirements.txt') as f:
     required = f.read().splitlines()
 
-setup(name='unityagentstennis',
+setup(name='unityagents',
       version='0.4.0',
       description='Unity Machine Learning Agents',
       license='Apache License 2.0',

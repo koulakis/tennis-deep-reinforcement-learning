@@ -1,9 +1,9 @@
 from typing import Any, Tuple, Dict, Optional, List, Union, Sequence
 import random
-import logging
+from enum import Enum
 
 from gym.spaces import Box
-from stable_baselines3.common.vec_env import VecEnv
+import gym
 from unityagents import UnityEnvironment, BrainInfo, BrainParameters
 import numpy as np
 
@@ -13,7 +13,12 @@ from tennis.definitions import ROOT_DIR
 AGENT_ENVIRONMENT_PATH = str(ROOT_DIR / 'unity_tennis_environment/Tennis.x86_64')
 
 
-class UnityMultiAgentEnvironmentWrapper(VecEnv):
+class Player(str, Enum):
+    first = 'first'
+    second = 'second'
+
+
+class UnityEnvironmentWrapperToGym(gym.Env):
     def __init__(
             self,
             *args,
@@ -21,7 +26,8 @@ class UnityMultiAgentEnvironmentWrapper(VecEnv):
             seed: Optional[int] = None,
             port: Optional[int] = None,
             **kwargs):
-        """A wrapper class which translates the given Unity environment to a stable baselines' VecEnv type environment.
+        """A wrapper class which translates the given Unity environment to a gym environment. It is setup to work with
+        the single agent reacher environment.
 
         Args:
             *args: arguments which are directly passed to the Unity environment. This is supposed to make the
@@ -40,72 +46,46 @@ class UnityMultiAgentEnvironmentWrapper(VecEnv):
 
         self.action_space, self.observation_space, self.reward_range = _environment_specs(self.brain)
 
-        self.num_envs = len(self._parse_brain_info(
-            self.unity_env.reset(train_mode=self.train_mode)[self.brain_name])[1])
+        self.num_envs = 1
+        self.episode_step = 0
+        self.episode_rewards = np.zeros(2)
 
-        super().__init__(self.num_envs, self.observation_space, self.action_space)
-
-        self.episode_steps = 0
-        self.episode_rewards = np.zeros(self.num_envs)
-        self.actions = None
-
-    def reset(self):
-        brain_info = self.unity_env.reset(train_mode=self.train_mode)[self.brain_name]
-        new_states, _, dones = self._parse_brain_info(brain_info)
-
-        self.episode_steps = 0
-        self.episode_rewards = np.zeros(self.num_envs)
-
-        return new_states
-
-    def step_async(self, actions) -> None:
-        self.actions = actions
-
-    def step_wait(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, List[Dict[str, Any]]]:
-        brain_info = self.unity_env.step(self.actions)[self.brain_name]
-        states, rewards, dones = self._parse_brain_info(brain_info)
+    def step(self, action) -> Tuple[Any, float, bool, Dict[str, Any]]:
+        brain_info = self.unity_env.step(action)[self.brain_name]
+        state, reward, done, rewards = self._parse_brain_info(brain_info)
 
         self.episode_rewards += rewards
-        self.episode_steps += 1
+        self.episode_step += 1
 
-        if any(dones):
-            if not all(dones):
-                logging.warning('All agent episodes were supposed to finish simultaneously, but this was not the case.'
-                                f'{sum(dones)}/{len(dones)} agents done.')
-            info = [
-                dict(episode=dict(
-                    r=self.episode_rewards[i],
-                    l=self.episode_steps))
-                for i in range(self.num_envs)
-            ]
-            self.reset()
-        else:
-            info = [dict() for _ in dones]
+        info = (
+            dict(episode=dict(
+                r=max(self.episode_rewards),
+                l=self.episode_step))
+            if done else dict())
 
-        return states, rewards, dones, info
+        return state, reward, done, info
+
+    def reset(self) -> np.ndarray:
+        brain_info = self.unity_env.reset(train_mode=self.train_mode)[self.brain_name]
+        self.episode_step = 0
+        self.episode_rewards = np.zeros(2)
+
+        return self._parse_brain_info(brain_info)[0]
+
+    def render(self, mode='human') -> None:
+        pass
 
     def close(self):
         self.unity_env.close()
 
-    def get_attr(self, attr_name, indices=None):
-        pass
-
-    def set_attr(self, attr_name, value, indices=None):
-        pass
-
-    def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
-        pass
-
-    def get_images(self, *args, **kwargs) -> Sequence[np.ndarray]:
-        pass
-
-    def seed(self, seed: Optional[int] = None) -> List[Union[None, int]]:
-        pass
-
     @staticmethod
-    def _parse_brain_info(info: BrainInfo) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Extract the states, rewards and dones information from an environment brain."""
-        return info.vector_observations, np.array(info.rewards), np.array(info.local_done)
+    def _parse_brain_info(info: BrainInfo) -> Tuple[np.ndarray, float, bool, np.ndarray]:
+        """Extract the state, reward and done information from an environment brain."""
+        observations = info.vector_observations.flatten()
+        rewards = info.rewards
+        done = any(info.local_done)
+
+        return observations, np.array(rewards).mean(), done, rewards
 
 
 def _setup_unity_environment(
@@ -129,9 +109,10 @@ def _setup_unity_environment(
 
 
 def _environment_specs(brain: BrainParameters) -> Tuple[Box, Box, Tuple[float, float]]:
-    """Extract the action space, observation space and reward range info from an environment brain."""
-    action_space_size = brain.vector_action_space_size
-    observation_space_size = brain.vector_observation_space_size
+    """Extract the action space, observation space and reward range info from an environment brain. Here the two agent
+    action and observation spaces are stacked together in order for them to be treated as one agent."""
+    action_space_size = 2 * brain.vector_action_space_size
+    observation_space_size = 2 * 24  # brain.vector_observation_space_size
     action_space = Box(
         low=np.array(action_space_size * [-1.0]),
         high=np.array(action_space_size * [1.0]))
